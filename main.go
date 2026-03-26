@@ -12,8 +12,8 @@ import (
 type Ocenki struct {
 	db *sql.DB
 }
-type Info struct{
-	ID int `json:"id"`
+type Info struct {
+	ID      int     `json:"id"`
 	Wartosc float64 `json:"wartosc"`
 }
 type NewGrade struct {
@@ -21,7 +21,7 @@ type NewGrade struct {
 }
 
 func main() {
-	connStr := "host=localhost port=5432 user=postgres password=Twoje_haslo_do_bazy dbname=szkola sslmode=disable"
+	connStr := "host=localhost port=5432 user=postgres password=Twoje_haslo dbname=szkola sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		panic(err)
@@ -40,13 +40,21 @@ func main() {
 	r.POST("/dodaj", app.dodajOcene)
 	r.GET("/wyswietl", app.wyswietlDane)
 	r.GET("/podsumowanie", app.podsumowanie)
+	r.DELETE("/usun/:id", app.usun)
 
 	fmt.Println("Serwer ruszył na porcie :9000")
 	r.Run(":9000")
 }
 
-func (a *Ocenki) usun(c *gin.Context){
-	errUsun:=a.db.QueryRow("DELETE FROM oceny WHERE id=$1")
+func (a *Ocenki) usun(c *gin.Context) {
+	pobraneID := c.Param("id")
+	_, errUsun := a.db.Exec("DELETE FROM oceny WHERE id=$1", pobraneID)
+
+	if errUsun != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Błąd bazy danych"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ocena z id " + pobraneID + " usunieta"})
 }
 
 func (a *Ocenki) podsumowanie(c *gin.Context) {
@@ -64,7 +72,7 @@ func (a *Ocenki) podsumowanie(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var i Info
 		if err := rows.Scan(&i.ID, &i.Wartosc); err != nil {
@@ -73,9 +81,9 @@ func (a *Ocenki) podsumowanie(c *gin.Context) {
 		wszystkieoceny = append(wszystkieoceny, i)
 	}
 	c.JSON(http.StatusOK, gin.H{
-			"srednia": srednia,
-			"oceny":   wszystkieoceny,
-		})
+		"srednia": srednia,
+		"oceny":   wszystkieoceny,
+	})
 
 }
 func (a *Ocenki) wyswietlDane(c *gin.Context) {
@@ -109,7 +117,7 @@ func (a *Ocenki) pobierzSrednia(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"srednia":   srednia,
-		"wiadomosc": "Dane pobrane z PostgreSQL!",
+		"wiadomosc": "Dane pobrane z bazy danych",
 	})
 }
 
