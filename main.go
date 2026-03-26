@@ -12,7 +12,10 @@ import (
 type Ocenki struct {
 	db *sql.DB
 }
-
+type Info struct{
+	ID int `json:"id"`
+	Wartosc float64 `json:"wartosc"`
+}
 type NewGrade struct {
 	Grade float64 `json:"wartosc"`
 }
@@ -42,6 +45,10 @@ func main() {
 	r.Run(":9000")
 }
 
+func (a *Ocenki) usun(c *gin.Context){
+	errUsun:=a.db.QueryRow("DELETE FROM oceny WHERE id=$1")
+}
+
 func (a *Ocenki) podsumowanie(c *gin.Context) {
 	var srednia float64
 	errSrednia := a.db.QueryRow("SELECT COALESCE(AVG(wartosc), 0) FROM oceny").Scan(&srednia)
@@ -50,8 +57,8 @@ func (a *Ocenki) podsumowanie(c *gin.Context) {
 		return
 	}
 
-	var wszystkieoceny []float64
-	rows, errLista := a.db.Query("SELECT wartosc FROM oceny")
+	var wszystkieoceny []Info
+	rows, errLista := a.db.Query("SELECT id, wartosc FROM oceny")
 	if errLista != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Błąd wyswietlania danych"})
 		return
@@ -59,11 +66,11 @@ func (a *Ocenki) podsumowanie(c *gin.Context) {
 	defer rows.Close()
 	
 	for rows.Next() {
-		var Jednaocena float64
-		if err := rows.Scan(&Jednaocena); err != nil {
+		var i Info
+		if err := rows.Scan(&i.ID, &i.Wartosc); err != nil {
 			continue
 		}
-		wszystkieoceny = append(wszystkieoceny, Jednaocena)
+		wszystkieoceny = append(wszystkieoceny, i)
 	}
 	c.JSON(http.StatusOK, gin.H{
 			"srednia": srednia,
@@ -72,19 +79,20 @@ func (a *Ocenki) podsumowanie(c *gin.Context) {
 
 }
 func (a *Ocenki) wyswietlDane(c *gin.Context) {
-	var wszystkieOceny []float64
-	rows, err := a.db.Query("SELECT wartosc FROM oceny")
+	var wszystkieOceny []Info
+	rows, err := a.db.Query("SELECT id, wartosc FROM oceny")
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Błąd bazy"})
 		return
 	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var jednaOcena float64
-		if err := rows.Scan(&jednaOcena); err != nil {
+		var i Info
+		if err := rows.Scan(&i.ID, &i.Wartosc); err != nil {
 			continue
 		}
-		wszystkieOceny = append(wszystkieOceny, jednaOcena)
+		wszystkieOceny = append(wszystkieOceny, i)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
